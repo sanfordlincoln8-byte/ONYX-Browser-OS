@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OnyxBrowserOS</title>
+<style>
+:root{
+  --accent:#8194ff;--text:#edf1fa;
+  --win:#202938;--bar:#273246;--alpha:1;--radius:13px;--ds:48px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;height:100vh;overflow:hidden;
+  color:var(--text);font-family:'Segoe UI',Arial,sans-serif;
+  background:#111622;user-select:none;
+}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer;color:inherit}
+input,textarea{user-select:text}
+#desktop{
+  height:100vh;position:relative;overflow:hidden;
+  background:
+    radial-gradient(ellipse at 70% 35%,#34466b 0%,transparent 48%),
+    radial-gradient(ellipse at 20% 85%,#403457 0%,transparent 45%),
+    linear-gradient(135deg,#111722,#1b2031);
+}
+#desktop[data-wall="blue"]{background:radial-gradient(ellipse at 65% 40%,#245e89,transparent 55%),#101d2e}
+#desktop[data-wall="purple"]{background:radial-gradient(ellipse at 65% 40%,#67468c,transparent 55%),#171426}
+#desktop[data-wall="green"]{background:radial-gradient(ellipse at 65% 40%,#286e5b,transparent 55%),#101f20}
+#brand{position:absolute;top:30px;left:34px;font-size:26px;font-weight:800;letter-spacing:4px}
+#brand span{color:var(--accent)}
+#tagline{position:absolute;top:66px;left:36px;color:#a9b2c5;font-size:10px;letter-spacing:2px}
+#desktopIcons{position:absolute;inset:0;pointer-events:none}
+.desktop-icon{
+  position:absolute;width:85px;padding:11px 4px;text-align:center;
+  border-radius:10px;cursor:pointer;pointer-events:auto;touch-action:none;
+}
+.desktop-icon:hover{background:#ffffff18}
+.desktop-icon.drop{background:#ffffff35;outline:2px dashed var(--accent)}
+.desktop-icon .emoji{font-size:29px;margin-bottom:6px}
+.desktop-icon small{font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#clock{position:absolute;right:28px;top:25px;text-align:right;font-size:14px;font-weight:600}
+#clock small{display:block;color:#aeb8ca;font-weight:400;margin-top:4px}
+
+#dockWrap{position:fixed;z-index:10000;max-width:96vw;max-height:96vh}
+#dockWrap[data-pos="bottom"]{bottom:15px;left:50%;transform:translateX(-50%)}
+#dockWrap[data-pos="top"]{top:15px;left:50%;transform:translateX(-50%)}
+#dockWrap[data-pos="left"]{left:15px;top:50%;transform:translateY(-50%)}
+#dockWrap[data-pos="right"]{right:15px;top:50%;transform:translateY(-50%)}
+#dock{
+  display:flex;gap:9px;align-items:center;padding:10px 14px;
+  background:#202838df;border:1px solid #ffffff27;
+  border-radius:20px;backdrop-filter:blur(25px);
+  box-shadow:0 12px 45px #0008;overflow:auto;max-height:96vh;scrollbar-width:none;
+}
+#dock::-webkit-scrollbar{display:none}
+#dockWrap[data-pos="left"] #dock,#dockWrap[data-pos="right"] #dock{flex-direction:column;padding:14px 10px}
+.dock-button{
+  width:var(--ds);height:var(--ds);flex:none;border:0;border-radius:14px;
+  background:#303d53;font-size:calc(var(--ds)*.5);position:relative;
+  transition:transform .18s,background .18s;
+}
+.dock-button:hover{transform:scale(1.15);background:#465775}
+.dock-button.running:after{
+  content:"";position:absolute;bottom:-6px;left:calc(50% - 2px);
+  width:5px;height:5px;border-radius:50%;background:var(--accent);
+}
+#dockWrap[data-pos="left"] .running:after{bottom:auto;left:-8px;top:calc(50% - 2px)}
+#dockWrap[data-pos="right"] .running:after{bottom:auto;left:auto;right:-8px;top:calc(50% - 2px)}
+#dockWrap[data-pos="top"] .running:after{bottom:auto;top:-6px}
+.dock-divider{height:35px;width:1px;background:#ffffff30;flex:none}
+#dockWrap[data-pos="left"] .dock-divider,#dockWrap[data-pos="right"] .dock-divider{height:1px;width:35px}
+
+.window{
+  position:absolute;left:22%;top:15%;width:560px;height:390px;
+  min-width:300px;min-height:180px;max-width:100vw;max-height:100vh;
+  display:none;flex-direction:column;
+  background:color-mix(in srgb,var(--win) calc(var(--alpha)*100%),transparent);
+  backdrop-filter:blur(12px);
+  border:1px solid #ffffff32;border-radius:var(--radius);overflow:hidden;
+  box-shadow:0 25px 80px #0009;
+}
+.window.show{display:flex}
+.titlebar{
+  height:43px;min-height:43px;background:var(--bar);
+  display:flex;align-items:center;padding:0 13px;gap:8px;
+  cursor:grab;touch-action:none;
+}
+.titlebar:active{cursor:grabbing}
+.control{width:13px;height:13px;border:0;border-radius:50%;padding:0}
+.close{background:#ff625e}.minimize{background:#f5bd4f}.maximize{background:#42c96b}
+.win-title{font-size:13px;margin-left:9px;color:#dce4f4}
+.win-content{padding:20px;overflow:auto;flex:1;min-height:0}
+.win-content h2{margin:0 0 12px;font-size:22px}
+.win-content h3{margin:22px 0 4px;font-size:14px;color:var(--accent);letter-spacing:1px;text-transform:uppercase}
+.muted{color:#aeb8ca;font-size:13px}
+.panel{background:#2b374a;padding:14px;border-radius:11px;margin:12px 0}
+.action{background:var(--accent);border:0;color:#101625;border-radius:8px;padding:9px 13px;font-weight:650}
+.action.secondary{background:#3a4961;color:#fff}
+.action.danger{background:#a84750;color:#fff}
+.action.small{padding:5px 9px;font-size:12px}
+.field{background:#151d2b;color:#fff;border:1px solid #ffffff28;border-radius:8px;padding:10px;width:100%;outline:none}
+.field:focus{border-color:var(--accent)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.file-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:9px;background:#293549;margin:7px 0}
+.file-row:hover{background:#3a4961}
+.file-row .file-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+textarea.editor{
+  width:100%;height:190px;resize:vertical;background:#151d2b;color:#fff;
+  border:1px solid #ffffff20;border-radius:9px;padding:13px;outline:none;
+}
+.calc{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:15px}
+.calc button{padding:17px 5px;background:#344258;border:0;border-radius:10px;font-size:18px}
+.calc button:hover{background:#52617b}
+.calc .operator{background:#5269ad}
+#calcDisplay{font-size:28px;text-align:right;padding:17px}
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #ffffff15;gap:15px}
+.setting-row p{margin:2px 0 0}
+.setting-row .field{width:150px;padding:7px}
+input[type=range]{width:130px;accent-color:var(--accent)}
+input[type=color]{width:44px;height:30px;border:0;background:none;padding:0}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+#launcher,#context{
+  display:none;position:fixed;z-index:11000;
+  background:#202b3df5;border:1px solid #ffffff2b;
+  border-radius:17px;box-shadow:0 20px 60px #0009;backdrop-filter:blur(25px);
+}
+#launcher{top:50%;left:50%;transform:translate(-50%,-50%);width:min(390px,94vw);max-height:80vh;overflow:auto;padding:19px}
+#launcher h2{margin:0 0 10px}
+#launcherApps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.launch-app{border:0;background:#ffffff0d;border-radius:10px;padding:14px 5px;font-size:13px}
+.launch-app:hover{background:#ffffff20}
+#context{padding:7px;width:210px}
+#context button{width:100%;border:0;background:transparent;padding:11px;text-align:left;border-radius:7px}
+#context button:hover{background:#ffffff18}
+
+/* folder window */
+#folderGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px}
+.ftile{position:relative;background:#ffffff0d;border-radius:10px;text-align:center;padding:14px 4px 10px;cursor:pointer}
+.ftile:hover{background:#ffffff20}
+.ftile .em{font-size:30px}
+.ftile small{display:block;margin-top:6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ftile .out{position:absolute;top:3px;right:3px;border:0;background:#0007;border-radius:6px;font-size:11px;padding:2px 6px}
+.ftile .out:hover{background:#a84750}
+
+/* resize handles (all edges + corners) */
+.resize-handle{
+  position:absolute;right:0;bottom:0;width:19px;height:19px;z-index:6;touch-action:none;
+  cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,#8495b5 50%);
+}
+.rz{position:absolute;z-index:5;touch-action:none}
+.rz[data-dir=n]{top:0;left:14px;right:14px;height:6px;cursor:ns-resize}
+.rz[data-dir=s]{bottom:0;left:14px;right:20px;height:6px;cursor:ns-resize}
+.rz[data-dir=e]{right:0;top:14px;bottom:20px;width:6px;cursor:ew-resize}
+.rz[data-dir=w]{left:0;top:14px;bottom:14px;width:6px;cursor:ew-resize}
+.rz[data-dir=ne]{top:0;right:0;width:14px;height:14px;cursor:nesw-resize}
+.rz[data-dir=nw]{top:0;left:0;width:14px;height:14px;cursor:nwse-resize}
+.rz[data-dir=sw]{bottom:0;left:0;width:14px;height:14px;cursor:nesw-resize}
+.status{font-size:12px;color:#9eabc1;margin-top:8px}
+@media(max-width:600px){
+  .window{left:3%!important;top:10%!important;width:94%!important;height:75%!important}
+  #dock{gap:5px;padding:8px}
+}
+</style>
+</head>
+<body>
+<div id="desktop">
+  <div id="brand"><span id="brandText" style="color:inherit">ONYX</span><span>.</span></div>
+  <div id="tagline">YOUR SPACE. YOUR SYSTEM.</div>
+  <div id="clock"><span id="time"></span><small id="date"></small></div>
+  <div id="desktopIcons"></div>
+
+  <!-- FILES -->
+  <section class="window" id="files">
+    <div class="titlebar">
+      <button class="control close" onclick="closeApp('files')"></button>
+      <button class="control minimize" onclick="minApp('files')"></button>
+      <button class="control maximize" onclick="maxApp('files')"></button>
+      <span class="win-title">File Explorer</span>
+    </div>
+    <div class="win-content">
+      <h2>📁 File Explorer</h2>
+      <p class="muted" id="crumbs">🏠 /</p>
+      <div class="toolbar">
+        <button class="action" onclick="newItem('file')">+ New file</button>
+        <button class="action secondary" onclick="newItem('folder')">+ New folder</button>
+        <button class="action secondary" id="upBtn" onclick="goUp()" style="display:none">⬆ Up</button>
+        <button class="action" onclick="connectPCFolder()">🖥️ Connect PC folder</button>
+        <button class="action secondary" id="pcDisconnect" onclick="disconnectPCFolder()" style="display:none">Disconnect</button>
+      </div>
+      <div id="fileList"></div>
+      <p class="status" id="fileStatus">Browser storage is active. Connect a PC folder to browse files on your computer.</p>
+    </div>
+    <div class="resize-handle"></div>
+  </section>
+
+  <!-- BROWSER -->
+  <section class="window" id="browser">
+    <div class="titlebar">
+      <button class="control close" onclick="closeApp('browser')"></button>
+      <button class="control minimize" onclick="minApp('browser')"></button>
+      <button class="control maximize" onclick="maxApp('browser')"></button>
+      <span class="win-title">Onyx Browser</span>
+    </div>
+    <div class="win-content">
+      <h2>🌐 Onyx Browser</h2>
+      <p class="muted">Search or open a website in a new tab.</p>
+      <div class="toolbar">
+        <button class="action secondary" onclick="browserBack()">←</button>
+        <button class="action secondary" onclick="browserForward()">→</button>
+        <button class="action secondary" onclick="browserRefresh()">↻</button>
+      </div>
+      <form onsubmit="navigate(event)">
+        <input class="field" id="address" placeholder="Search Google or enter a URL">
+        <button class="action" style="margin-top:10px">Go</button>
+      </form>
+      <div class="panel">
+        <h3 style="margin-top:0">Quick sites</h3>
+        <button class="action secondary" onclick="quickSite('https://www.google.com')">Google</button>
+        <button class="action secondary" onclick="quickSite('https://www.youtube.com')">YouTube</button>
+        <button class="action secondary" onclick="quickSite('https://discord.com/app')">Discord</button>
+        <button class="action secondary" onclick="quickSite('https://store.steampowered.com')">Steam</button>
+      </div>
+      <p class="status" id="browserStatus">Ready</p>
+    </div>
+    <div class="resize-handle"></div>
+  </section>
+
+  <!-- NOTES -->
+  <section class="window" id="notes">
+    <div class="titlebar">
+      <button class="control close" onclick="closeApp('notes')"></button>
+      <button class="control minimize" onclick="minApp('notes')"></button>
+      <button class="control maximize" onclick="maxApp('notes')"></button>
+      <span class="win-title">Onyx Notepad</span>
+    </div>
+    <div class="win-content">
+      <h2>📝 Notepad <span class="muted" id="noteName">Scratch pad</span></h2>
+      <div class="toolbar">
+        <button class="action" onclick="saveNote()">Save</button>
+        <button class="action secondary" onclick="scratch()">Scratch pad</button>
+        <button class="action secondary" onclick="clearNote()">Clear</button>
+      </div>
+      <textarea class="editor" id="noteText" placeholder="Start writing..."></textarea>
+      <p class="status" id="noteStatus">Autosave on (saved in this browser)</p>
+    </div>
+    <div class="resize-handle"></div>
+  </section>
+
+  <!-- CALCULATOR -->
+  <section class="window" id="calculator">
+    <div class="titlebar">
+      <button class="control close" onclick="closeApp('calculator')"></button>
+      <button class="control minimize" onclick="minApp('calculator')"></button>
+      <button class="control maximize" onclick="maxApp('calculator')"></button>
+      <span class="win-title">Calculator</span>
+    </div>
+    <div class="win-content">
+      <h2>🧮 Calculator</h2>
+      <div class="panel" id="calcDisplay">0</div>
+      <div class="calc">
+        <button onclick="calcClear()">C</button>
+        <button onclick="calcInput('(')">(</button>
+        <button onclick="calcInput(')')">)</button>
+        <button class="operator" onclick="calcInput('/')">÷</button>
+        <button onclick="calcInput('7')">7</button>
+        <button onclick="calcInput('8')">8</button>
+        <button onclick="calcInput('9')">9</button>
+        <button class="operator" onclick="calcInput('*')">×</button>
+        <button onclick="calcInput('4')">4</button>
+        <button onclick="calcInput('5')">5</button>
+        <button onclick="calcInput('6')">6</button>
+        <button class="operator" onclick="calcInput('-')">−</button>
+        <button onclick="calcInput('1')">1</button>
+        <button onclick="calcInput('2')">2</button>
+        <button onclick="calcInput('3')">3</button>
+        <button class="operator" onclick="calcInput('+')">+</button>
+        <button onclick="calcInput('0')">0</button>
+        <button onclick="calcInput('.')">.</button>
+        <button onclick="calcBack()">⌫</button>
+        <button class="operator" onclick="calcEquals()">=</button>
+      </div>
+    </div>
+    <div class="resize-handle"></div>
+  </section>
+
+  <!-- GAMES -->
+  <section class="window" id="games">
+    <div class="titlebar">
+      <button class="control close" onclick="closeApp('games')"></button>
+      <button class="control minimize" onclick="minApp('games')"></button>
+      <button class="control maximize" onclick="maxApp('games')"></button>
+      <span class="win-title">Onyx Games</span>
+    </div>
+    <div class="win-content">
+      <h2>🎮 Games</h2>
+      <div class="toolbar">
+        <button class="action" onclick="startGame('snake')">Snake</button>
+        <button class="action" onclick="startGame('pong')">Pong</button>
+        <button class="action" onclick="startGame('react')">Reaction</button>
+      </div>
+      <canvas id="gameCanvas" width="400" height="300" style="width:100%;max-width:400px;background:#151d2b;border-radius:10px;touch-action:none"></canvas>
+      <p class="status" id="gameStatus">Pick a game. Arrow keys / W,S to play.</p>
+    </div>
+    <div class="resize-handle"></div>
+  </section>
+
+  <!-- SPOTIFY -->
+  <section class="window" id="spotify" style="width:420px;height:540px">
+    <div class="titlebar">
+      <button class="control close" onclick="closeApp('spotify')"></button>
+      <button class="control minimize" onclick="minApp('spotify')"></button>
+      <button class="control maximize" onclick="maxApp('spotify')"></button>
+      <span class="win-title">Spotify</span>
+    </div>
+    <div class="win-content" style="display:flex;flex-direction:column;gap:10px;padding:14px">
+      <div class="toolbar" style="margin:0;flex-wrap:nowrap">
+        <input class="field" id="spotUrl" placeholder="Paste a Spotify playlist / album / track link" style="flex:1;min-width:0"
+          onkeydown="if(event.key==='Enter')loadSpot(this.value)">
+        <button class="action" onclick="loadSpot($('spotUrl').value)">Load</button>
+      </div>
+      <iframe id="spotFrame" title="Spotify player"
+        style="flex:1;min-height:150px;width:100%;border:0;border-radius:12px;background:#121212"
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+      <div class="toolbar" style="margin:0">
+        <button class="action secondary small" onclick="window.open('https://open.spotify.com','_blank','noopener')">Open Spotify website</button>
+        <button class="action secondary small" onclick="location.href='spotify:'">Open desktop app</button>
+      </div>
+      <p class="status" style="margin:0">Log in to Spotify in this browser (full songs need Premium). Minimize keeps music playing, close stops it.</p>
+    </div>
+    <div class="resize-handle"></div>
+  </section>
+
+  <!-- DESKTOP FOLDER -->
+  <section class="window" id="folder" style="width:430px;height:360px">
+    <div class="titlebar">
+      <button class="control close" onclick="closeApp('folder')"></button>
+      <button class="control minimize" onclick="minApp('folder')"></button>
+      <button class="control maximize" onclick="maxApp('folder')"></button>
+      <span class="win-title" id="folderTitle">Folder</span>
+    </div>
+    <div class="win-content">
+      <div class="toolbar" style="margin-top:0">
+        <button class="action small secondary" onclick="renameFolder()">✏️ Rename</button>
+        <button class="action small danger" onclick="deleteFolder()">🗑 Delete folder</button>
+      </div>
+      <div id="folderGrid"></div>
+      <p class="status">Drag an icon from the desktop onto a folder to put it inside. Click ⤴ on a tile to move it back out.</p>
+    </div>
+    <div class="resize-handle"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="window" id="settings" style="width:540px;height:520px">
+    <div class="titlebar">
+      <button class="control close" onclick="closeApp('settings')"></button>
+      <button class="control minimize" onclick="minApp('settings')"></button>
+      <button class="control maximize" onclick="maxApp('settings')"></button>
+      <span class="win-title">System Settings</span>
+    </div>
+    <div class="win-content">
+      <h2>⚙️ Settings</h2>
+
+      <h3>Wallpaper</h3>
+      <div class="setting-row"><div><b>Background</b></div>
+        <select class="field" data-k="wall">
+          <option value="default">Midnight</option>
+          <option value="blue">Ocean</option>
+          <option value="purple">Violet</option>
+          <option value="green">Forest</option>
+          <option value="custom">Custom gradient</option>
+          <option value="image">Image</option>
+        </select></div>
+      <div class="setting-row"><div><b>Gradient colours</b><p class="muted">Used by "Custom gradient"</p></div>
+        <span><input type="color" data-k="c1"> <input type="color" data-k="c2"></span></div>
+      <div class="setting-row"><div><b>Image from URL</b></div>
+        <input class="field" id="imgUrl" placeholder="https://..." oninput="setImgUrl(this.value)"></div>
+      <div class="setting-row"><div><b>Image from device</b><p class="muted">Stored in this browser only</p></div>
+        <span><input type="file" accept="image/*" id="imgFile" style="display:none" onchange="pickImage(this)">
+        <button class="action small" onclick="$('imgFile').click()">Choose</button>
+        <button class="action small secondary" onclick="clearImage()">Clear</button></span></div>
+
+      <h3>Colours &amp; windows</h3>
+      <div class="setting-row"><div><b>Accent colour</b></div><input type="color" data-k="accent"></div>
+      <div class="setting-row"><div><b>Window colour</b></div><input type="color" data-k="winColor"></div>
+      <div class="setting-row"><div><b>Title bar colour</b></div><input type="color" data-k="barColor"></div>
+      <div class="setting-row"><div><b>Window opacity</b></div><input type="range" min="0.4" max="1" step="0.05" data-k="alpha"></div>
+      <div class="setting-row"><div><b>Corner roundness</b></div><input type="range" min="0" max="30" data-k="radius"></div>
+
+      <h3>Text</h3>
+      <div class="setting-row"><div><b>Font</b></div>
+        <select class="field" data-k="font">
+          <option value="'Segoe UI',Arial,sans-serif">Segoe UI</option>
+          <option value="Arial,sans-serif">Arial</option>
+          <option value="'Arial Black',sans-serif">Arial Black</option>
+          <option value="Bahnschrift,sans-serif">Bahnschrift</option>
+          <option value="Aptos,sans-serif">Aptos</option>
+          <option value="Calibri,sans-serif">Calibri</option>
+          <option value="Cambria,serif">Cambria</option>
+          <option value="Candara,sans-serif">Candara</option>
+          <option value="'Comic Sans MS',cursive">Comic Sans MS</option>
+          <option value="Consolas,monospace">Consolas</option>
+          <option value="Constantia,serif">Constantia</option>
+          <option value="Corbel,sans-serif">Corbel</option>
+          <option value="'Courier New',monospace">Courier New</option>
+          <option value="Ebrima,sans-serif">Ebrima</option>
+          <option value="'Franklin Gothic Medium',sans-serif">Franklin Gothic Medium</option>
+          <option value="Gabriola,cursive">Gabriola</option>
+          <option value="Georgia,serif">Georgia</option>
+          <option value="Impact,sans-serif">Impact</option>
+          <option value="'Ink Free',cursive">Ink Free</option>
+          <option value="'Leelawadee UI',sans-serif">Leelawadee UI</option>
+          <option value="'Lucida Console',monospace">Lucida Console</option>
+          <option value="'Lucida Sans Unicode',sans-serif">Lucida Sans Unicode</option>
+          <option value="'Microsoft Sans Serif',sans-serif">Microsoft Sans Serif</option>
+          <option value="'Palatino Linotype',serif">Palatino Linotype</option>
+          <option value="Rockwell,serif">Rockwell</option>
+          <option value="'Segoe UI Light',sans-serif">Segoe UI Light</option>
+          <option value="'Segoe UI Semibold',sans-serif">Segoe UI Semibold</option>
+          <option value="'Sitka Text',serif">Sitka Text</option>
+          <option value="Sylfaen,serif">Sylfaen</option>
+          <option value="Tahoma,sans-serif">Tahoma</option>
+          <option value="'Times New Roman',serif">Times New Roman</option>
+          <option value="'Trebuchet MS',sans-serif">Trebuchet MS</option>
+          <option value="Verdana,sans-serif">Verdana</option>
+        </select></div>
+      <div class="setting-row"><div><b>Text size</b></div><input type="range" min="11" max="19" data-k="fs"></div>
+
+      <h3>Dock &amp; icons</h3>
+      <div class="setting-row"><div><b>Dock position</b></div>
+        <select class="field" data-k="dockPos">
+          <option value="right">Right</option><option value="left">Left</option>
+          <option value="bottom">Bottom</option><option value="top">Top</option>
+        </select></div>
+      <div class="setting-row"><div><b>Dock icon size</b></div><input type="range" min="32" max="72" data-k="dockSize"></div>
+      <div class="setting-row"><div><b>Desktop icons</b><p class="muted">Drag them to move them</p></div><input type="checkbox" data-k="showIcons"></div>
+      <div class="setting-row"><div><b>Desktop folders</b><p class="muted">Drag icons onto a folder to put them inside</p></div><button class="action small" onclick="newFolder()">+ New folder</button></div>
+      <div class="setting-row"><div><b>Icon positions</b></div><button class="action small secondary" onclick="resetIcons()">Reset positions</button></div>
+      <div class="setting-row"><div><b>Open Steam in the desktop app</b><p class="muted">Needs Steam installed. Off = Steam website</p></div><input type="checkbox" data-k="desktopApps"></div>
+
+      <h3>Clock &amp; branding</h3>
+      <div class="setting-row"><div><b>Show clock</b></div><input type="checkbox" data-k="showClock"></div>
+      <div class="setting-row"><div><b>24-hour time</b></div><input type="checkbox" data-k="h24"></div>
+      <div class="setting-row"><div><b>Show seconds</b></div><input type="checkbox" data-k="secs"></div>
+      <div class="setting-row"><div><b>Show logo text</b></div><input type="checkbox" data-k="showBrand"></div>
+      <div class="setting-row"><div><b>Logo text</b></div><input class="field" data-k="brand" maxlength="20"></div>
+      <div class="setting-row"><div><b>Tagline</b></div><input class="field" data-k="tag" maxlength="40"></div>
+
+      <h3>Shortcuts</h3>
+      <p class="muted">Icons that open websites in a new tab. They show on the desktop, dock and launcher.</p>
+      <div id="linkList"></div>
+      <div class="toolbar">
+        <input class="field" id="lnIcon" placeholder="😀" style="width:60px">
+        <input class="field" id="lnName" placeholder="Name" style="width:120px">
+        <input class="field" id="lnUrl" placeholder="example.com" style="flex:1;min-width:120px">
+        <button class="action" onclick="addLink()">Add</button>
+      </div>
+      <button class="action secondary" onclick="resetLinks()">Reset shortcuts</button>
+
+      <div class="panel">
+        <b>About Onyx</b>
+        <p class="muted">ONYX v0.06. Settings and app data stay in this browser. Connected PC folders are accessed only after you choose and grant permission.</p>
+      </div>
+      <button class="action danger" onclick="resetAll()">Reset all appearance settings</button>
+    </div>
+    <div class="resize-handle"></div>
+  </section>
+
+  <!-- LAUNCHER -->
+  <div id="launcher">
+    <h2>ONYX LAUNCHER</h2>
+    <input class="field" id="appSearch" placeholder="Search applications..." oninput="filterApps()">
+    <div id="launcherApps"></div>
+  </div>
+
+  <!-- CONTEXT MENU -->
+  <div id="context">
+    <button onclick="newFolder();hideContext()">🗂️ New folder</button>
+    <button onclick="openApp('files');hideContext()">📁 Open Files</button>
+    <button onclick="openApp('notes');hideContext()">📝 New Note</button>
+    <button onclick="openApp('games');hideContext()">🎮 Games</button>
+    <button onclick="openApp('spotify');hideContext()">🎵 Spotify</button>
+    <button onclick="openApp('settings');hideContext()">🎨 Customize</button>
+    <button onclick="resetIcons();hideContext()">↺ Reset icon positions</button>
+    <button onclick="hideContext()">Cancel</button>
+  </div>
+</div>
+
+<div id="dockWrap" data-pos="right"><div id="dock"></div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}};
+const coarse=matchMedia('(pointer:coarse)').matches;
+
+// ---------- SETTINGS ----------
+const defaults={
+  accent:'#8194ff',wall:'default',c1:'#34466b',c2:'#403457',img:'',
+  winColor:'#202938',barColor:'#273246',alpha:1,radius:13,
+  font:"'Segoe UI',Arial,sans-serif",fs:14,
+  dockPos:'right',dockSize:48,showIcons:true,desktopApps:false,
+  showClock:true,h24:false,secs:false,
+  showBrand:true,brand:'ONYX',tag:'YOUR SPACE. YOUR SYSTEM.'
+};
+let S={...defaults,...load('onyx-settings',{})};
+// one-time: move dock to the right for existing users
+if(!localStorage.getItem('onyx-v2')){
+  S.dockPos='right';
+  try{localStorage.setItem('onyx-v2','1');localStorage.setItem('onyx-settings',JSON.stringify(S))}catch{}
+}
+const save=()=>{
+  try{localStorage.setItem('onyx-settings',JSON.stringify(S))}
+  catch{alert('Storage is full. Try a smaller wallpaper image.')}
+  apply();
+};
+function apply(){
+  const r=document.documentElement.style;
+  r.setProperty('--accent',S.accent);r.setProperty('--win',S.winColor);r.setProperty('--bar',S.barColor);
+  r.setProperty('--alpha',S.alpha);r.setProperty('--radius',S.radius+'px');r.setProperty('--ds',S.dockSize+'px');
+  document.body.style.fontFamily=S.font;
+  document.body.style.fontSize=S.fs+'px';
+  const d=$('desktop');
+  d.dataset.wall=['blue','purple','green'].includes(S.wall)?S.wall:'';
+  d.style.background=S.wall==='custom'?`linear-gradient(135deg,${S.c1},${S.c2})`
+    :(S.wall==='image'&&S.img)?`center/cover no-repeat url("${S.img.replace(/"/g,'%22')}")`:'';
+  $('dockWrap').dataset.pos=S.dockPos;
+  $('brandText').textContent=S.brand;
+  $('brand').style.display=$('tagline').style.display=S.showBrand?'':'none';
+  $('tagline').textContent=S.tag;
+  $('desktopIcons').style.display=S.showIcons?'':'none';
+  $('clock').style.display=S.showClock?'':'none';
+  updateClock();
+}
+function syncUI(){
+  document.querySelectorAll('[data-k]').forEach(el=>{
+    const v=S[el.dataset.k];
+    if(el.type==='checkbox')el.checked=v;else el.value=v;
+  });
+  $('imgUrl').value=S.img&&!S.img.startsWith('data:')?S.img:'';
+}
+document.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('input',()=>{
+  const k=el.dataset.k;
+  S[k]=el.type==='checkbox'?el.checked:el.type==='range'?+el.value:el.value;
+  save();
+}));
+function setImgUrl(v){S.img=v.trim();if(S.img)S.wall='image';save();document.querySelector('[data-k=wall]').value=S.wall}
+function clearImage(){S.img='';if(S.wall==='image')S.wall='default';save();syncUI()}
+function pickImage(inp){
+  const f=inp.files[0];if(!f)return;
+  const im=new Image(),u=URL.createObjectURL(f);
+  im.onload=()=>{
+    const sc=Math.min(1,1920/im.width),c=document.createElement('canvas');
+    c.width=im.width*sc;c.height=im.height*sc;
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    URL.revokeObjectURL(u);
+    S.img=c.toDataURL('image/jpeg',.8);S.wall='image';save();syncUI();
+  };
+  im.src=u;inp.value='';
+}
+function resetAll(){
+  if(!confirm('Reset all appearance settings?'))return;
+  S={...defaults};save();syncUI();
+}
+
+// ---------- ITEMS: apps, shortcuts, desktop folders ----------
+const builtins=[
+  {id:'files',name:'Files',icon:'📁'},
+  {id:'browser',name:'Browser',icon:'🌐'},
+  {id:'notes',name:'Notes',icon:'📝'},
+  {id:'calculator',name:'Calculator',icon:'🧮'},
+  {id:'games',name:'Games',icon:'🎮'},
+  {id:'spotify',name:'Spotify',icon:'🎵'},
+  {id:'settings',name:'Settings',icon:'⚙️'}
+];
+const defLinks=[
+  {name:'YouTube',icon:'▶️',url:'https://www.youtube.com'},
+  {name:'Google',icon:'🔍',url:'https://www.google.com'},
+  {name:'Discord',icon:'💬',url:'https://discord.com/app'},
+  {name:'Steam',icon:'♨️',url:'https://store.steampowered.com',alt:'steam://open/main'}
+];
+let links=load('onyx-links',defLinks.map(l=>({...l})));
+// one-time: add Steam for existing users
+if(!localStorage.getItem('onyx-v3')){
+  if(!links.some(l=>/steam/i.test(l.name)))links.push({...defLinks[3]});
+  try{localStorage.setItem('onyx-v3','1');localStorage.setItem('onyx-links',JSON.stringify(links))}catch{}
+}
+let iconPos=load('onyx-iconpos',{});
+let folders=load('onyx-folders',[]);   // [{id,name,items:[key,...]}]
+let curFolder=null;
+const allItems=()=>[...builtins.map(b=>({...b,app:1})),...links];
+const itemKey=it=>it.app?it.id:'l:'+it.name;
+const saveIconPos=()=>{try{localStorage.setItem('onyx-iconpos',JSON.stringify(iconPos))}catch{}};
+const saveFolders=()=>{try{localStorage.setItem('onyx-folders',JSON.stringify(folders))}catch{}};
+function saveLinks(){
+  try{localStorage.setItem('onyx-links',JSON.stringify(links))}catch{}
+  renderShell();renderLinks();
+}
+function activate(it){
+  if(it.app)openApp(it.id);
+  else{
+    if(S.desktopApps&&it.alt)location.href=it.alt;
+    else window.open(it.url,'_blank','noopener');
+    hideLauncher();
+  }
+}
+
+// ----- desktop icon placement + dragging -----
+function placeIcon(di,key,i){
+  const rows=Math.max(1,Math.floor((innerHeight-150)/100));
+  const p=iconPos[key]||{x:22+Math.floor(i/rows)*100,y:115+(i%rows)*100};
+  di.style.left=Math.max(0,Math.min(innerWidth-85,p.x))+'px';
+  di.style.top=Math.max(0,Math.min(innerHeight-90,p.y))+'px';
+}
+function folderAt(di){
+  if(di.dataset.folder)return null;               // folders can't go inside folders
+  const r=di.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  return [...document.querySelectorAll('.desktop-icon[data-folder]')].find(f=>{
+    if(f===di)return false;
+    const b=f.getBoundingClientRect();
+    return cx>b.left&&cx<b.right&&cy>b.top&&cy<b.bottom;
+  })||null;
+}
+const clearDrops=()=>document.querySelectorAll('.desktop-icon.drop').forEach(x=>x.classList.remove('drop'));
+function makeDraggable(di,key,fn){
+  let down=false,moved=false,sx,sy,ox,oy;
+  di.addEventListener('pointerdown',e=>{
+    if(e.button)return;
+    down=true;moved=false;sx=e.clientX;sy=e.clientY;ox=di.offsetLeft;oy=di.offsetTop;
+    di.setPointerCapture(e.pointerId);
+  });
+  di.addEventListener('pointermove',e=>{
+    if(!down)return;
+    const dx=e.clientX-sx,dy=e.clientY-sy;
+    if(!moved&&Math.hypot(dx,dy)<5)return;
+    moved=true;
+    di.style.left=Math.max(0,Math.min(innerWidth-85,ox+dx))+'px';
+    di.style.top=Math.max(0,Math.min(innerHeight-90,oy+dy))+'px';
+    clearDrops();const t=folderAt(di);if(t)t.classList.add('drop');
+  });
+  di.addEventListener('pointerup',()=>{
+    if(!down)return;down=false;
+    if(!moved)return;
+    const t=folderAt(di);clearDrops();
+    if(t){addToFolder(t.dataset.folder,key);return}
+    iconPos[key]={x:di.offsetLeft,y:di.offsetTop};saveIconPos();
+  });
+  di.addEventListener(coarse?'click':'dblclick',()=>{if(moved){moved=false;return}fn()});
+}
+function resetIcons(){
+  iconPos={};localStorage.removeItem('onyx-iconpos');renderShell();
+}
+
+// ----- folders -----
+function newFolder(){
+  const name=prompt('Folder name:','New folder');
+  if(!name)return;
+  folders.push({id:Date.now().toString(36),name:name.trim()||'Folder',items:[]});
+  saveFolders();renderShell();
+}
+function addToFolder(fid,key){
+  folders.forEach(f=>f.items=f.items.filter(k=>k!==key));
+  const f=folders.find(x=>x.id===fid);
+  if(f&&!f.items.includes(key))f.items.push(key);
+  saveFolders();renderShell();
+  if(curFolder===fid&&$('folder').classList.contains('show'))renderFolder();
+}
+function folderSpot(fid){
+  const el=document.querySelector(`.desktop-icon[data-folder="${fid}"]`);
+  return el?{x:el.offsetLeft,y:el.offsetTop}:{x:150,y:150};
+}
+function takeOut(key){
+  const f=folders.find(x=>x.id===curFolder);if(!f)return;
+  const p=folderSpot(f.id);
+  iconPos[key]={x:Math.min(innerWidth-85,p.x+95),y:p.y};saveIconPos();
+  f.items=f.items.filter(k=>k!==key);saveFolders();
+  renderShell();renderFolder();
+}
+function openFolder(id){curFolder=id;renderFolder();openApp('folder')}
+function renderFolder(){
+  const f=folders.find(x=>x.id===curFolder);
+  if(!f){closeApp('folder');return}
+  $('folderTitle').textContent='🗂️ '+f.name;
+  const g=$('folderGrid');g.innerHTML='';
+  const all=allItems();
+  const its=f.items.map(k=>all.find(it=>itemKey(it)===k)).filter(Boolean);
+  if(!its.length){
+    g.innerHTML='<p class="muted" style="grid-column:1/-1">Empty. Drag apps from the desktop onto this folder.</p>';
+    return;
+  }
+  its.forEach(it=>{
+    const t=document.createElement('div');t.className='ftile';
+    const em=document.createElement('div');em.className='em';em.textContent=it.icon;
+    const sm=document.createElement('small');sm.textContent=it.name;
+    const out=document.createElement('button');out.className='out';out.textContent='⤴';out.title='Move to desktop';
+    out.onclick=e=>{e.stopPropagation();takeOut(itemKey(it))};
+    t.onclick=()=>activate(it);
+    t.append(em,sm,out);g.append(t);
+  });
+}
+function renameFolder(){
+  const f=folders.find(x=>x.id===curFolder);if(!f)return;
+  const name=prompt('New name:',f.name);
+  if(!name)return;
+  f.name=name.trim()||f.name;saveFolders();renderShell();renderFolder();
+}
+function deleteFolder(){
+  const f=folders.find(x=>x.id===curFolder);if(!f)return;
+  if(!confirm('Delete folder "'+f.name+'"? Its apps go back to the desktop.'))return;
+  const p=folderSpot(f.id);
+  f.items.forEach((k,i)=>{iconPos[k]={x:Math.min(innerWidth-85,p.x+95+(i%3)*95),y:p.y+Math.floor(i/3)*100}});
+  saveIconPos();
+  delete iconPos['f:'+f.id];
+  folders=folders.filter(x=>x.id!==f.id);saveFolders();
+  curFolder=null;closeApp('folder');renderShell();
+}
+
+// ----- build dock, launcher, desktop -----
+function renderShell(){
+  const dock=$('dock'),ic=$('desktopIcons'),la=$('launcherApps');
+  dock.innerHTML='';ic.innerHTML='';la.innerHTML='';
+  const lb=document.createElement('button');
+  lb.className='dock-button';lb.title='App launcher';lb.textContent='◆';lb.onclick=toggleLauncher;
+  const dv=document.createElement('div');dv.className='dock-divider';
+  dock.append(lb,dv);
+  const all=allItems(),inFolder=new Set(folders.flatMap(f=>f.items));
+  all.forEach((it,i)=>{
+    const key=itemKey(it);
+    // dock + launcher always show every app
+    const b=document.createElement('button');
+    b.className='dock-button';b.title=it.name;b.textContent=it.icon;
+    if(it.app){b.id='dock-'+it.id;if($(it.id).classList.contains('show'))b.classList.add('running')}
+    b.onclick=()=>activate(it);dock.append(b);
+    const l=document.createElement('button');
+    l.className='launch-app';l.dataset.name=it.name.toLowerCase();
+    l.append(it.icon,document.createElement('br'),it.name);
+    l.onclick=()=>activate(it);la.append(l);
+    // desktop icon (hidden if it lives in a folder)
+    if(inFolder.has(key))return;
+    const di=document.createElement('div');di.className='desktop-icon';
+    const em=document.createElement('div');em.className='emoji';em.textContent=it.icon;
+    const sm=document.createElement('small');sm.textContent=it.name;
+    di.append(em,sm);ic.append(di);
+    placeIcon(di,key,i);makeDraggable(di,key,()=>activate(it));
+  });
+  folders.forEach((f,j)=>{
+    const di=document.createElement('div');di.className='desktop-icon';di.dataset.folder=f.id;
+    const em=document.createElement('div');em.className='emoji';em.textContent='🗂️';
+    const sm=document.createElement('small');sm.textContent=f.name+(f.items.length?' ('+f.items.length+')':'');
+    di.append(em,sm);ic.append(di);
+    placeIcon(di,'f:'+f.id,all.length+j);makeDraggable(di,'f:'+f.id,()=>openFolder(f.id));
+  });
+}
+function renderLinks(){
+  const box=$('linkList');box.innerHTML='';
+  if(!links.length)box.innerHTML='<p class="muted">No shortcuts.</p>';
+  links.forEach((k,i)=>{
+    const row=document.createElement('div');row.className='setting-row';
+    const t=document.createElement('span');t.textContent=k.icon+' '+k.name;
+    const u=document.createElement('span');u.className='muted';u.textContent=k.url.replace(/^https?:\/\//,'');
+    u.style.cssText='flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    const rm=document.createElement('button');rm.className='action small danger';rm.textContent='Remove';
+    rm.onclick=()=>{links.splice(i,1);saveLinks()};
+    row.append(t,u,rm);box.append(row);
+  });
+}
+function addLink(){
+  const name=$('lnName').value.trim(),icon=$('lnIcon').value.trim()||'🔗';
+  let url=$('lnUrl').value.trim();
+  if(!name||!url)return;
+  if(!/^https?:\/\//i.test(url))url='https://'+url;
+  try{new URL(url)}catch{return alert('That URL does not look right.')}
+  links.push({name,icon,url});
+  $('lnName').value=$('lnIcon').value=$('lnUrl').value='';
+  saveLinks();
+}
+function resetLinks(){links=defLinks.map(l=>({...l}));saveLinks()}
+let rsT;addEventListener('resize',()=>{clearTimeout(rsT);rsT=setTimeout(renderShell,150)});
+
+// ---------- SPOTIFY ----------
+const SPOT_DEF='https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M';
+function spotEmbed(v){
+  v=(v||'').trim();
+  let m=v.match(/open\.spotify\.com\/(?:embed\/)?(?:intl-[a-zA-Z-]+\/)?(playlist|album|track|artist|episode|show)\/([A-Za-z0-9]+)/);
+  if(!m)m=v.match(/^spotify:(playlist|album|track|artist|episode|show):([A-Za-z0-9]+)$/);
+  return m?`https://open.spotify.com/embed/${m[1]}/${m[2]}`:null;
+}
+function loadSpot(v){
+  const u=spotEmbed(v);
+  if(!u)return alert('Paste a Spotify link (playlist, album, track, artist or podcast).');
+  $('spotFrame').src=u;
+  try{localStorage.setItem('onyx-spotify',u)}catch{}
+  $('spotUrl').value='';
+}
+
+// ---------- WINDOW MANAGER ----------
+let z=20;
+const states={};
+const MINW=300,MINH=180;
+function openApp(id){
+  const w=$(id);
+  w.classList.add('show');w.style.zIndex=++z;
+  const dk=$('dock-'+id);if(dk)dk.classList.add('running');
+  hideLauncher();hideContext();
+  if(id==='files')renderFiles();
+  if(id==='spotify'){
+    const src=$('spotFrame').getAttribute('src');
+    if(!src||src==='about:blank')$('spotFrame').src=localStorage.getItem('onyx-spotify')||SPOT_DEF;
+  }
+}
+function closeApp(id){
+  $(id).classList.remove('show');
+  const dk=$('dock-'+id);if(dk)dk.classList.remove('running');
+  if(states[id]?.max)maxApp(id);
+  if(id==='spotify')$('spotFrame').src='about:blank';
+}
+function minApp(id){$(id).classList.remove('show')}
+function maxApp(id){
+  const w=$(id);
+  if(!states[id])states[id]={max:false};
+  if(!states[id].max){
+    states[id].old={left:w.style.left,top:w.style.top,width:w.style.width,height:w.style.height};
+    w.style.left='2%';w.style.top='3%';w.style.width='96%';w.style.height='84%';
+    states[id].max=true;
+  }else{
+    Object.assign(w.style,states[id].old);states[id].max=false;
+  }
+  w.style.zIndex=++z;
+}
+document.querySelectorAll('.window').forEach(w=>{
+  // drag by title bar
+  const bar=w.querySelector('.titlebar');
+  let drag=false,sx=0,sy=0,ox=0,oy=0;
+  bar.addEventListener('pointerdown',e=>{
+    if(e.target.classList.contains('control'))return;
+    if(states[w.id]?.max)return;
+    drag=true;sx=e.clientX;sy=e.clientY;ox=w.offsetLeft;oy=w.offsetTop;
+    w.style.zIndex=++z;bar.setPointerCapture(e.pointerId);
+  });
+  bar.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    w.style.left=Math.max(0,Math.min(innerWidth-w.offsetWidth,ox+e.clientX-sx))+'px';
+    w.style.top=Math.max(0,Math.min(innerHeight-80,oy+e.clientY-sy))+'px';
+  });
+  bar.addEventListener('pointerup',()=>drag=false);
+  w.addEventListener('pointerdown',()=>w.style.zIndex=++z);
+
+  // resize from every edge and corner
+  const hs=[w.querySelector('.resize-handle')];
+  hs[0].dataset.dir='se';
+  ['n','s','e','w','ne','nw','sw'].forEach(d=>{
+    const h=document.createElement('div');h.className='rz';h.dataset.dir=d;w.append(h);hs.push(h);
+  });
+  hs.forEach(h=>{
+    let on=false,sx,sy,sl,st,sw,sh;
+    h.addEventListener('pointerdown',e=>{
+      if(states[w.id]?.max)return;
+      on=true;sx=e.clientX;sy=e.clientY;
+      sl=w.offsetLeft;st=w.offsetTop;sw=w.offsetWidth;sh=w.offsetHeight;
+      h.setPointerCapture(e.pointerId);e.stopPropagation();e.preventDefault();
+      w.style.zIndex=++z;
+    });
+    h.addEventListener('pointermove',e=>{
+      if(!on)return;
+      const d=h.dataset.dir,dx=e.clientX-sx,dy=e.clientY-sy;
+      let W=sw,H=sh,L=sl,T=st;
+      if(d.includes('e'))W=sw+dx;
+      if(d.includes('w'))W=sw-dx;
+      if(d.includes('s'))H=sh+dy;
+      if(d.includes('n'))H=sh-dy;
+      W=Math.max(MINW,W);H=Math.max(MINH,H);
+      if(d.includes('w'))L=sl+sw-W;
+      if(d.includes('n'))T=st+sh-H;
+      if(T<0){H+=T;T=0}
+      Object.assign(w.style,{left:L+'px',top:T+'px',width:W+'px',height:H+'px'});
+    });
+    h.addEventListener('pointerup',()=>on=false);
+  });
+});
+
+// ---------- LAUNCHER ----------
+function hideLauncher(){$('launcher').style.display='none'}
+function toggleLauncher(){
+  const l=$('launcher');
+  l.style.display=l.style.display==='block'?'none':'block';
+  if(l.style.display==='block'){$('appSearch').value='';filterApps();$('appSearch').focus()}
+}
+function filterApps(){
+  const q=$('appSearch').value.toLowerCase();
+  document.querySelectorAll('.launch-app').forEach(b=>b.style.display=b.dataset.name.includes(q)?'':'none');
+}
+
+// ---------- CLOCK ----------
+function updateClock(){
+  const d=new Date();
+  $('time').textContent=d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:S.secs?'2-digit':undefined,hour12:!S.h24});
+  $('date').textContent=d.toLocaleDateString([],{weekday:'long',month:'short',day:'numeric'});
+}
+setInterval(updateClock,1000);
+
+// ---------- BROWSER LAUNCHER ----------
+let browserHistory=[],browserIndex=-1;
+function navigate(e){
+  e.preventDefault();
+  const value=$('address').value.trim();
+  if(!value)return;
+  let url;
+  try{
+    url=/^https?:\/\//i.test(value)?new URL(value)
+      :(value.includes('.')&&!value.includes(' ')?new URL('https://'+value)
+      :new URL('https://www.google.com/search?q='+encodeURIComponent(value)));
+  }catch{url=new URL('https://www.google.com/search?q='+encodeURIComponent(value))}
+  if(!['http:','https:'].includes(url.protocol))return;
+  window.open(url.href,'_blank','noopener');
+  browserHistory=browserHistory.slice(0,browserIndex+1);
+  browserHistory.push(url.href);browserIndex++;
+  $('browserStatus').textContent='Opened '+url.hostname;
+}
+function quickSite(url){
+  $('address').value=url;window.open(url,'_blank','noopener');
+  browserHistory=browserHistory.slice(0,browserIndex+1);
+  browserHistory.push(url);browserIndex++;
+}
+function browserBack(){if(browserIndex>0){browserIndex--;window.open(browserHistory[browserIndex],'_blank','noopener')}}
+function browserForward(){if(browserIndex<browserHistory.length-1){browserIndex++;window.open(browserHistory[browserIndex],'_blank','noopener')}}
+function browserRefresh(){if(browserIndex>=0)window.open(browserHistory[browserIndex],'_blank','noopener')}
+
+// ---------- LOCAL FILE STORAGE (IndexedDB, browser only) ----------
+let db,cur=null,path=[];
+const req=indexedDB.open('OnyxBrowserOS',1);
+req.onupgradeneeded=()=>req.result.createObjectStore('files',{keyPath:'id',autoIncrement:true});
+req.onsuccess=()=>{db=req.result;renderFiles()};
+req.onerror=()=>{$('fileStatus').textContent='Storage could not be opened. Check browser settings.'};
+
+// PC folder access uses the browser's File System Access permission picker.
+// The user chooses exactly which folder ONYX can access; the browser never
+// receives unrestricted access to the whole computer.
+let pcRootHandle=null,pcFolderStack=[],pcCurrentFileHandle=null;
+const pcSupported=()=>typeof window.showDirectoryPicker==='function';
+async function connectPCFolder(){
+  if(!pcSupported()){
+    $('fileStatus').textContent='Your browser does not support folder access. Use the latest Chrome or Edge on Windows.';
+    return;
+  }
+  try{
+    pcRootHandle=await window.showDirectoryPicker({mode:'readwrite'});
+    pcFolderStack=[pcRootHandle];pcCurrentFileHandle=null;
+    $('pcDisconnect').style.display='';
+    $('fileStatus').textContent='Connected to: '+pcRootHandle.name+' (you can disconnect at any time).';
+    await renderPCFiles();
+  }catch(e){
+    if(e.name!=='AbortError')$('fileStatus').textContent='Could not connect folder: '+e.message;
+  }
+}
+function disconnectPCFolder(){
+  pcRootHandle=null;pcFolderStack=[];pcCurrentFileHandle=null;
+  $('pcDisconnect').style.display='none';path=[];cur=null;
+  $('fileStatus').textContent='Disconnected. Showing ONYX browser storage.';
+  renderFiles();
+}
+async function renderPCFiles(){
+  if(!pcRootHandle)return;
+  const dir=pcFolderStack[pcFolderStack.length-1];
+  $('crumbs').textContent='🖥️ / '+pcFolderStack.map(h=>h.name).join(' / ');
+  $('upBtn').style.display=pcFolderStack.length>1?'':'none';
+  const list=$('fileList');list.innerHTML='';
+  try{
+    for await(const entry of dir.values()){
+      const row=document.createElement('div');row.className='file-row';
+      const ic=document.createElement('span');ic.textContent=entry.kind==='directory'?'📁':'📄';
+      const nm=document.createElement('span');nm.className='file-name';nm.textContent=entry.name;
+      const open=document.createElement('button');open.className='action small';open.textContent=entry.kind==='directory'?'Open':'Read';
+      open.onclick=()=>entry.kind==='directory'?openPCDirectory(entry):openPCFile(entry);
+      row.append(ic,nm,open);
+      if(entry.kind==='file'){
+        const download=document.createElement('button');download.className='action small secondary';download.textContent='Download';
+        download.onclick=async()=>{try{const f=await entry.getFile();const u=URL.createObjectURL(f);const a=document.createElement('a');a.href=u;a.download=f.name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}catch(e){alert('Could not download file: '+e.message)}};
+        row.append(download);
+      }
+      const del=document.createElement('button');del.className='action small danger';del.textContent='Delete';
+      del.onclick=async()=>{if(!confirm('Delete '+entry.name+' from your PC?'))return;try{await dir.removeEntry(entry.name,{recursive:entry.kind==='directory'});await renderPCFiles()}catch(e){alert('Could not delete: '+e.message)}};
+      row.append(del);list.append(row);
+    }
+    if(!list.children.length)list.innerHTML='<p class="muted">This PC folder is empty.</p>'
+  }catch(e){$('fileStatus').textContent='Could not read this folder. Reconnect it and allow access: '+e.message}
+}
+async function openPCDirectory(handle){pcFolderStack.push(handle);await renderPCFiles()}
+async function openPCFile(handle){
+  try{
+    const file=await handle.getFile();
+    if(file.size>2*1024*1024){alert('This file is larger than 2 MB. Use Download to open it with a Windows app.');return}
+    if(!(/^(text\/|application\/(json|javascript|xml))/.test(file.type)||/\.(txt|md|js|css|html|json|xml|csv|log)$/i.test(file.name))){
+      const u=URL.createObjectURL(file);const a=document.createElement('a');a.href=u;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);return;
+    }
+    clearTimeout(noteTimer);await saveNote();
+    pcCurrentFileHandle=handle;curFile=null;note.value=await file.text();$('noteName').textContent='PC: '+file.name;$('noteStatus').textContent='Editing a file on your PC';openApp('notes');
+  }catch(e){alert('Could not open file: '+e.message)}
+}
+async function goUpPC(){if(pcFolderStack.length>1){pcFolderStack.pop();await renderPCFiles()}}
+async function createPCItem(type){
+  const name=prompt(type==='directory'?'New folder name:':'New file name:',type==='directory'?'New folder':'New file.txt');
+  if(!name)return;
+  try{const dir=pcFolderStack[pcFolderStack.length-1];if(type==='directory')await dir.getDirectoryHandle(name,{create:true});else await dir.getFileHandle(name,{create:true});await renderPCFiles()}catch(e){alert('Could not create item: '+e.message)}
+}
+const dbRun=(mode,fn)=>new Promise((res,rej)=>{
+  if(!db)return rej(Error('Storage still loading'));
+  const t=db.transaction('files',mode),r=fn(t.objectStore('files'));
+  t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error);
+});
+async function renderFiles(){
+  if(pcRootHandle){await renderPCFiles();return;}
+  if(!db)return;
+  const list=$('fileList');
+  try{
+    const all=await dbRun('readonly',s=>s.getAll());
+    $('crumbs').textContent='🏠 / '+path.map(p=>p.name).join(' / ');
+    $('upBtn').style.display=cur===null?'none':'';
+    const here=all.filter(f=>(f.parent??null)===cur)
+      .sort((a,b)=>(a.type==='folder'?0:1)-(b.type==='folder'?0:1)||a.name.localeCompare(b.name));
+    list.innerHTML='';
+    if(!here.length){list.innerHTML='<p class="muted">Empty. Create a file or folder.</p>';return}
+    here.forEach(f=>{
+      const row=document.createElement('div');row.className='file-row';
+      const ic=document.createElement('span');ic.textContent=f.type==='folder'?'📁':'📄';
+      const nm=document.createElement('span');nm.className='file-name';nm.textContent=f.name;
+      const mk=(t,fn,c)=>{const b=document.createElement('button');b.className='action small '+(c||'secondary');b.textContent=t;b.onclick=fn;return b};
+      row.append(ic,nm,mk('Open',()=>openItem(f),''),mk('✏️',()=>renameItem(f)),mk('🗑',()=>deleteItem(f),'danger'));
+      list.append(row);
+    });
+  }catch(e){$('fileStatus').textContent='Could not load files: '+e.message}
+}
+async function newItem(type){
+  if(pcRootHandle){await createPCItem(type==='folder'?'directory':'file');return;}
+  const name=prompt(type==='folder'?'Folder name:':'File name:',type==='folder'?'New folder':'New document.txt');
+  if(!name)return;
+  try{await dbRun('readwrite',s=>s.add({name,type,content:'',parent:cur,created:Date.now()}));renderFiles()}
+  catch(e){alert(e.message)}
+}
+function openItem(f){
+  if(f.type==='folder'){cur=f.id;path.push({id:f.id,name:f.name});renderFiles()}
+  else openStoredFile(f);
+}
+function goUp(){if(pcRootHandle){goUpPC();return;}path.pop();cur=path.length?path[path.length-1].id:null;renderFiles()}
+async function renameItem(f){
+  const name=prompt('New name:',f.name);
+  if(!name)return;
+  await dbRun('readwrite',s=>s.put({...f,name}));
+  if(curFile===f.id)$('noteName').textContent=name;
+  renderFiles();
+}
+async function deleteItem(f){
+  if(!confirm('Delete '+f.name+(f.type==='folder'?' and everything inside it?':'?')))return;
+  const all=await dbRun('readonly',s=>s.getAll());
+  const ids=[f.id];
+  for(let i=0;i<ids.length;i++)all.forEach(x=>{if((x.parent??null)===ids[i])ids.push(x.id)});
+  await dbRun('readwrite',s=>ids.forEach(i=>s.delete(i)));
+  if(ids.includes(curFile))scratch();
+  renderFiles();
+}
+
+// ---------- NOTES ----------
+const note=$('noteText');
+let curFile=null,noteTimer;
+note.value=localStorage.getItem('onyx-note')||'';
+note.addEventListener('input',()=>{
+  $('noteStatus').textContent='Saving...';
+  clearTimeout(noteTimer);noteTimer=setTimeout(saveNote,300);
+});
+async function saveNote(){
+  try{
+    if(pcCurrentFileHandle){
+      const writable=await pcCurrentFileHandle.createWritable();
+      await writable.write(note.value);await writable.close();
+      $('noteStatus').textContent='Saved to your PC';
+    }else if(curFile!==null){
+      const rec=await dbRun('readonly',s=>s.get(curFile));
+      if(rec){rec.content=note.value;await dbRun('readwrite',s=>s.put(rec))}
+    }else localStorage.setItem('onyx-note',note.value);
+    $('noteStatus').textContent='Saved in this browser';
+  }catch(e){$('noteStatus').textContent='Save failed: '+e.message}
+}
+async function scratch(){
+  clearTimeout(noteTimer);await saveNote();
+  curFile=null;pcCurrentFileHandle=null;note.value=localStorage.getItem('onyx-note')||'';
+  $('noteName').textContent='Scratch pad';
+}
+function clearNote(){if(confirm('Clear this note?')){note.value='';saveNote()}}
+async function openStoredFile(f){
+  clearTimeout(noteTimer);await saveNote();
+  pcCurrentFileHandle=null;curFile=f.id;note.value=f.content||'';$('noteName').textContent=f.name;
+  openApp('notes');
+}
+
+// ---------- CALCULATOR (safe parser) ----------
+let expression='';
+function calcInput(v){expression+=v;showCalc()}
+function calcClear(){expression='';showCalc()}
+function calcBack(){expression=expression.slice(0,-1);showCalc()}
+function showCalc(){$('calcDisplay').textContent=expression||'0'}
+function calcEquals(){
+  try{
+    const tokens=expression.match(/\d*\.?\d+|[()+\-*/]/g)||[];
+    if(tokens.join('')!==expression||!tokens.length)throw Error();
+    let i=0;
+    function primary(){
+      if(tokens[i]==='-'){i++;return -primary()}
+      if(tokens[i]==='+'){i++;return primary()}
+      if(tokens[i]==='('){i++;const v=add();if(tokens[i++]!==')')throw Error();return v}
+      const n=Number(tokens[i++]);if(!Number.isFinite(n))throw Error();return n;
+    }
+    function mul(){let n=primary();while(tokens[i]==='*'||tokens[i]==='/'){const op=tokens[i++],v=primary();n=op==='*'?n*v:n/v}return n}
+    function add(){let n=mul();while(tokens[i]==='+'||tokens[i]==='-'){const op=tokens[i++],v=mul();n=op==='+'?n+v:n-v}return n}
+    const result=add();
+    if(i!==tokens.length||!Number.isFinite(result))throw Error();
+    expression=String(Number(result.toPrecision(12)));showCalc();
+  }catch{$('calcDisplay').textContent='Invalid expression';expression=''}
+}
+document.addEventListener('keydown',e=>{
+  if(!$('calculator').classList.contains('show'))return;
+  if(e.target.closest('input,textarea'))return;
+  if(/^[0-9.+\-*/()]$/.test(e.key))calcInput(e.key);
+  if(e.key==='Enter')calcEquals();
+  if(e.key==='Backspace')calcBack();
+  if(e.key==='Escape')calcClear();
+});
+
+// ---------- CONTEXT MENU ----------
+const context=$('context');
+function hideContext(){context.style.display='none'}
+$('desktop').addEventListener('contextmenu',e=>{
+  if(e.target.closest('.window')||e.target.closest('#dockWrap'))return;
+  e.preventDefault();
+  context.style.display='block';
+  context.style.left=Math.min(e.clientX,innerWidth-220)+'px';
+  context.style.top=Math.min(e.clientY,innerHeight-360)+'px';
+});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#context'))hideContext();
+  if(!e.target.closest('#launcher')&&!e.target.closest('#dockWrap'))hideLauncher();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){hideContext();hideLauncher()}});
+
+// ---------- GAMES ----------
+let game=null;
+const cv=$('gameCanvas'),g=cv.getContext('2d'),gw=$('games');
+const gs=t=>$('gameStatus').textContent=t;
+const loop=(f,ms)=>setInterval(()=>{if(gw.classList.contains('show'))f()},ms);
+const hi=(k,s)=>{const b=Math.max(+localStorage.getItem('onyx-'+k)||0,s);localStorage.setItem('onyx-'+k,b);return b};
+const accentNow=()=>getComputedStyle(document.documentElement).getPropertyValue('--accent');
+function startGame(n){if(game)game.stop();game=games[n]()}
+document.addEventListener('keydown',e=>{
+  if(e.target.closest('input,textarea'))return;
+  if(game&&game.key&&gw.classList.contains('show'))game.key(e,1);
+});
+document.addEventListener('keyup',e=>{if(game&&game.key)game.key(e,0)});
+
+const games={
+snake(){
+  const S=20,C=cv.width/S,R=cv.height/S;
+  let s=[{x:10,y:7}],d={x:1,y:0},nd=d,f={x:15,y:7},score=0;
+  const place=()=>{do{f={x:Math.floor(Math.random()*C),y:Math.floor(Math.random()*R)}}while(s.some(p=>p.x==f.x&&p.y==f.y))};
+  const keys={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]};
+  const id=loop(()=>{
+    d=nd;const h={x:s[0].x+d.x,y:s[0].y+d.y};
+    if(h.x<0||h.y<0||h.x>=C||h.y>=R||s.some(p=>p.x==h.x&&p.y==h.y)){
+      clearInterval(id);gs('Game over! Score '+score+' | Best '+hi('snake',score)+' (press Snake to retry)');return;
+    }
+    s.unshift(h);
+    if(h.x==f.x&&h.y==f.y){score++;place();gs('Score '+score)}else s.pop();
+    g.fillStyle='#151d2b';g.fillRect(0,0,cv.width,cv.height);
+    g.fillStyle='#ff625e';g.fillRect(f.x*S,f.y*S,S-2,S-2);
+    g.fillStyle=accentNow();
+    s.forEach(p=>g.fillRect(p.x*S,p.y*S,S-2,S-2));
+  },110);
+  gs('Snake: arrow keys or WASD');
+  return{stop(){clearInterval(id)},key(e,down){
+    const m=keys[e.key];
+    if(m&&down){if(m[0]!==-d.x||m[1]!==-d.y)nd={x:m[0],y:m[1]};e.preventDefault()}
+  }};
+},
+pong(){
+  const W=cv.width,H=cv.height;
+  let p=H/2-30,a=H/2-30,bx=W/2,by=H/2,vx=4,vy=2.5,ps=0,as=0,up=0,dn=0;
+  const reset=()=>{bx=W/2;by=H/2;vx=(vx>0?-4:4);vy=2.5};
+  cv.onpointermove=e=>{const r=cv.getBoundingClientRect();p=(e.clientY-r.top)*H/r.height-30};
+  const id=loop(()=>{
+    p+=(dn-up)*6;p=Math.max(0,Math.min(H-60,p));
+    a+=Math.sign(by-(a+30))*3.2;a=Math.max(0,Math.min(H-60,a));
+    bx+=vx;by+=vy;
+    if(by<0||by>H)vy=-vy;
+    if(bx<20&&vx<0&&by>p&&by<p+60){vx=-vx*1.05;vy+=(by-(p+30))/8}
+    if(bx>W-20&&vx>0&&by>a&&by<a+60){vx=-vx*1.05;vy+=(by-(a+30))/8}
+    if(bx<0){as++;reset()}
+    if(bx>W){ps++;reset();hi('pong',ps)}
+    g.fillStyle='#151d2b';g.fillRect(0,0,W,H);
+    g.fillStyle=accentNow();g.fillRect(10,p,10,60);
+    g.fillStyle='#ff625e';g.fillRect(W-20,a,10,60);
+    g.fillStyle='#fff';g.fillRect(bx-5,by-5,10,10);
+    gs('You '+ps+' - '+as+' CPU | Best '+(localStorage.getItem('onyx-pong')||0));
+  },16);
+  gs('Pong: mouse/touch or W,S / arrows');
+  return{stop(){clearInterval(id);cv.onpointermove=null},key(e,down){
+    if(e.key=='ArrowUp'||e.key=='w'){up=down;e.preventDefault()}
+    if(e.key=='ArrowDown'||e.key=='s'){dn=down;e.preventDefault()}
+  }};
+},
+react(){
+  let st='wait',t0=0,tm;
+  const draw=(c,t)=>{g.fillStyle=c;g.fillRect(0,0,cv.width,cv.height);g.fillStyle='#fff';g.font='22px sans-serif';g.textAlign='center';g.fillText(t,cv.width/2,cv.height/2)};
+  const arm=()=>{st='wait';draw('#a84750','Wait for green...');
+    tm=setTimeout(()=>{st='go';t0=performance.now();draw('#42c96b','CLICK NOW!')},1000+Math.random()*2500)};
+  cv.onclick=()=>{
+    if(st=='wait'){clearTimeout(tm);st='idle';draw('#3a4961','Too early! Click to retry')}
+    else if(st=='go'){
+      const ms=Math.round(performance.now()-t0);st='idle';
+      const b=Math.min(+localStorage.getItem('onyx-react')||9999,ms);localStorage.setItem('onyx-react',b);
+      draw('#3a4961',ms+' ms (best '+b+' ms) - click to retry');
+    }else arm();
+  };
+  arm();gs('Reaction: click when it turns green');
+  return{stop(){clearTimeout(tm);cv.onclick=null}};
+}
+};
+
+// ---------- INIT ----------
+syncUI();apply();renderShell();renderLinks();
+</script>
+</body>
+</html>
